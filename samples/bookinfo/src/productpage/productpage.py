@@ -61,23 +61,24 @@ servicesDomain = "" if (os.environ.get("SERVICES_DOMAIN") is None) else "." + os
 detailsHostname = "details" if (os.environ.get("DETAILS_HOSTNAME") is None) else os.environ.get("DETAILS_HOSTNAME")
 ratingsHostname = "ratings" if (os.environ.get("RATINGS_HOSTNAME") is None) else os.environ.get("RATINGS_HOSTNAME")
 reviewsHostname = "reviews" if (os.environ.get("REVIEWS_HOSTNAME") is None) else os.environ.get("REVIEWS_HOSTNAME")
+servicesPort = "9080" if (os.environ.get("SERVICES_PORT") is None) else os.environ.get("SERVICES_PORT")
 
 flood_factor = 0 if (os.environ.get("FLOOD_FACTOR") is None) else int(os.environ.get("FLOOD_FACTOR"))
 
 details = {
-    "name": "http://{0}{1}:9080".format(detailsHostname, servicesDomain),
+    "name": "http://{0}{1}:{2}".format(detailsHostname, servicesDomain, servicesPort),
     "endpoint": "details",
     "children": []
 }
 
 ratings = {
-    "name": "http://{0}{1}:9080".format(ratingsHostname, servicesDomain),
+    "name": "http://{0}{1}:{2}".format(ratingsHostname, servicesDomain, servicesPort),
     "endpoint": "ratings",
     "children": []
 }
 
 reviews = {
-    "name": "http://{0}{1}:9080".format(reviewsHostname, servicesDomain),
+    "name": "http://{0}{1}:{2}".format(reviewsHostname, servicesDomain, servicesPort),
     "endpoint": "reviews",
     "children": [ratings]
 }
@@ -370,7 +371,18 @@ def getProductDetails(product_id, headers):
     try:
         url = details['name'] + "/" + details['endpoint'] + "/" + str(product_id)
         res = requests.get(url, headers=headers, timeout=3.0)
-    except BaseException:
+        res.raise_for_status()
+    except requests.exceptions.HTTPError as errh:
+        print ("Http Error:",errh)
+        res = None
+    except requests.exceptions.ConnectionError as errc:
+        print ("Error Connecting:",errc)
+        res = None
+    except requests.exceptions.Timeout as errt:
+        print ("Timeout Error:",errt)
+        res = None
+    except requests.exceptions.RequestException as err:
+        print ("OOps: Something Else",err)
         res = None
     if res and res.status_code == 200:
         return 200, res.json()
